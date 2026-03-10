@@ -1,12 +1,17 @@
+#[allow(unused_imports)]
 use crate::aws::aws_apis::database::aws_dynamodb::*;
+#[allow(unused_imports)]
 use aws_sdk_dynamodb::config::Region;
+#[allow(unused_imports)]
 use aws_sdk_dynamodb::types::{
     AttributeDefinition, AttributeValue, BillingMode, ComparisonOperator, Condition,
     GlobalSecondaryIndex, KeySchemaElement, KeyType, LocalSecondaryIndex, ProvisionedThroughput,
-    ReturnConsumedCapacity, ScalarAttributeType, Select, SseSpecification, StreamSpecification,
-    TableClass,
+    ReturnConsumedCapacity, ReturnValue, ScalarAttributeType, Select, SseSpecification,
+    StreamSpecification, TableClass, WriteRequest,
 };
+#[allow(unused_imports)]
 use aws_sdk_dynamodb::{Client, Config};
+#[allow(unused_imports)]
 use std::collections::HashMap;
 
 async fn create_client() -> Client {
@@ -48,11 +53,11 @@ async fn test_create_table() {
         provisioned_throughput,
         None,
         None,
-        None, // tags
+        None,
         TableClass::Standard,
-        Some(false), // deletion_protection_enabled
-        None,        // resource_policy
-        None,        // on_demand_throughput
+        Some(false),
+        None,
+        None,
     )
     .await;
 
@@ -71,15 +76,15 @@ async fn test_delete_item() {
         &client,
         table_name,
         Some(key),
-        None, // expected
-        None, // conditional_operator
-        None, // return_values
-        None, // return_consumed_capacity
-        None, // return_item_collection_metrics
-        None, // condition_expression
-        None, // expression_attribute_names
-        None, // expression_attribute_values
-        None, // return_values_on_condition_check_failure
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
     )
     .await;
 
@@ -93,6 +98,144 @@ async fn test_delete_table() {
     let table_name = "test-table".to_string();
 
     let result = delete_table(&client, table_name).await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_get_item() {
+    let client = create_client().await;
+
+    let table_name = "test-table".to_string();
+    let mut key = HashMap::new();
+    key.insert("id".to_string(), AttributeValue::S("test-id".to_string()));
+
+    let result = get_item(
+        &client,
+        table_name,
+        Some(key),
+        None,
+        Some(false),
+        None,
+        None,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_put_item() {
+    let client = create_client().await;
+
+    let table_name = "test-table".to_string();
+    let mut item = HashMap::new();
+    item.insert("id".to_string(), AttributeValue::S("test-id".to_string()));
+    item.insert("name".to_string(), AttributeValue::S("test-name".to_string()));
+
+    let result = put_item(
+        &client,
+        table_name,
+        Some(item),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_update_item() {
+    let client = create_client().await;
+
+    let table_name = "test-table".to_string();
+    let mut key = HashMap::new();
+    key.insert("id".to_string(), AttributeValue::S("test-id".to_string()));
+
+    let mut expr_values = HashMap::new();
+    expr_values.insert(":n".to_string(), AttributeValue::S("updated-name".to_string()));
+
+    let result = update_item(
+        &client,
+        table_name,
+        Some(key),
+        Some(ReturnValue::AllNew),
+        None,
+        None,
+        None,
+        None,
+        Some("SET #n = :n".to_string()),
+        Some(HashMap::from([("#n".to_string(), "name".to_string())])),
+        Some(expr_values),
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_scan() {
+    let client = create_client().await;
+
+    let table_name = "test-table".to_string();
+
+    let result = scan(
+        &client,
+        table_name,
+        None,
+        None,
+        Some(10),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(false),
+    )
+    .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_batch_write_item() {
+    let client = create_client().await;
+
+    let mut item = HashMap::new();
+    item.insert("id".to_string(), AttributeValue::S("batch-id".to_string()));
+
+    let write_request = WriteRequest::builder()
+        .put_request(
+            aws_sdk_dynamodb::types::PutRequest::builder()
+                .set_item(Some(item))
+                .build()
+                .unwrap(),
+        )
+        .build();
+
+    let request_items = HashMap::from([("test-table".to_string(), vec![write_request])]);
+
+    let result = batch_write_item(
+        &client,
+        Some(request_items),
+        None,
+        None,
+    )
+    .await;
 
     assert!(result.is_ok());
 }
@@ -115,22 +258,22 @@ async fn test_query() {
     let result = query(
         &client,
         table_name,
-        None, // index_name
+        None,
         Some(Select::AllAttributes),
-        None,        // attributes_to_get
-        Some(10),    // limit
-        Some(false), // consistent_read
+        None,
+        Some(10),
+        Some(false),
         Some(key_conditions),
-        None,       // query_filter
-        None,       // conditional_operator
-        Some(true), // scan_index_forward
-        None,       // exclusive_start_key
+        None,
+        None,
+        Some(true),
+        None,
         Some(ReturnConsumedCapacity::Total),
-        None, // projection_expression
-        None, // filter_expression
-        None, // key_condition_expression
-        None, // expression_attribute_names
-        None, // expression_attribute_values
+        None,
+        None,
+        None,
+        None,
+        None,
     )
     .await;
 
